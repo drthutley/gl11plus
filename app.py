@@ -112,14 +112,17 @@ def generate_quiz(subject, selected_topics, num_questions, api_key):
         return False
 
     client = genai.Client(api_key=api_key)
-    prompt = f"""
+  prompt = f"""
     You are an expert tutor for the UK GL 11+ exams. Generate exactly {num_questions} unique practice questions.
     Distribute the questions evenly across these topics for the subject '{subject}': {', '.join(selected_topics)}
-    Requirements:
-    1. Strictly align with the GL 11+ standard.
-    2. Provide exactly 5 distinct options (A, B, C, D, E).
-    3. The hint MUST be dyslexia-friendly (clear, simple phrasing).
-    4. Provide an exam technique/strategy for approaching this specific type of question rapidly.
+    
+    CRITICAL LOGIC RULES:
+    1. If creating a coding/logic puzzle, ensure the logic is 100% sound. If you provide words, you MUST provide the same number of codes.
+    2. If the question involves deduction, ensure there is enough information provided to uniquely identify the correct answer. Do not create 'impossible' puzzles.
+    3. Strictly align with GL 11+ standards.
+    4. Provide exactly 5 distinct options (A, B, C, D, E) for every question.
+    5. The hint MUST be dyslexia-friendly (clear, simple phrasing).
+    6. Provide an exam technique/strategy for approaching this specific type of question rapidly.
     """
     try:
         response = client.models.generate_content(
