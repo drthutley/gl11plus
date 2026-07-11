@@ -113,45 +113,30 @@ def generate_quiz(subject, selected_topics, num_questions, api_key):
 
     client = genai.Client(api_key=api_key)
     
-   def generate_quiz(subject, selected_topics, num_questions, api_key):
+ def generate_quiz(subject, selected_topics, num_questions, api_key):
     if not api_key:
         st.error("Please ensure your API key is in Streamlit Secrets.")
         return False
-
+    
     client = genai.Client(api_key=api_key)
     
-    # We provide an example of a perfect puzzle to "teach" the AI
     prompt = f"""
-    You are a professional GL 11+ exam question creator. Generate {num_questions} questions for {subject} covering: {', '.join(selected_topics)}.
+    You are a professional GL 11+ exam question creator. Generate exactly {num_questions} unique practice questions.
+    Distribute the questions evenly across: {', '.join(selected_topics)}.
     
-    ### GOLD STANDARD EXAMPLE (Follow this logic strictly):
-    Topic: Letter-Word Codes
-    Question: Four words: MATE, TEAM, TAME, MEAT. Three codes: 4123, 3124, 2143. What is the code for TEAM?
-    Logic Check: 
-    - MATE: letters M-A-T-E map to 4-1-2-3
-    - TEAM: letters T-E-A-M map to 2-3-1-4
-    - TAME: letters T-A-M-E map to 2-1-4-3
-    - MEAT: letters M-E-A-T map to 4-3-1-2
-    (The AI must generate a coherent mapping like this before outputting the question).
-    
-    ### MANDATORY RULES:
-    1. SOLVABILITY: Before generating, create a logic table in your 'mind'. If you cannot map the numbers to letters consistently, do not output the question.
-    2. STRUCTURE: Provide exactly 5 options (A, B, C, D, E).
-    3. HINTS/TECHNIQUE: Hints must explain the deduction method.
-    4. VARIETY: Do not repeat the same question twice.
+    CRITICAL LOGIC RULES:
+    1. For logic/coding, use the '4 words, 3 codes' format, but ensure it is mathematically solvable.
+    2. Every question must have exactly one correct answer and 5 options (A-E).
+    3. HINTS/TECHNIQUE: Hints must explain deduction. 
+    4. SOLVABILITY: If a puzzle cannot be solved logically, do not output it.
     """
     
     try:
         response = client.models.generate_content(
             model='gemini-3.5-flash',
             contents=prompt,
-            config={
-                'response_mime_type': 'application/json',
-                'response_schema': QuizData,
-                'temperature': 0.1, # Even tighter logic control
-            }
+            config={'response_mime_type': 'application/json', 'response_schema': QuizData, 'temperature': 0.1}
         )
-        # ... rest of your existing function code remains the same ...
         data = json.loads(response.text)
         st.session_state.quiz_questions = data["questions"]
         st.session_state.user_answers = {}
@@ -162,7 +147,7 @@ def generate_quiz(subject, selected_topics, num_questions, api_key):
         st.session_state.current_subject = subject
         return True
     except Exception as e:
-        st.error(f"Failed to generate questions. Error: {e}")
+        st.error(f"Failed to generate: {e}")
         return False
 
 # ==========================================
