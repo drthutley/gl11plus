@@ -113,18 +113,32 @@ def generate_quiz(subject, selected_topics, num_questions, api_key):
 
     client = genai.Client(api_key=api_key)
     
-    prompt = f"""
-    You are an expert tutor for the UK GL 11+ exams. Generate exactly {num_questions} unique practice questions.
-    Distribute the questions evenly across these topics for the subject '{subject}': {', '.join(selected_topics)}
+   def generate_quiz(subject, selected_topics, num_questions, api_key):
+    if not api_key:
+        st.error("Please ensure your API key is in Streamlit Secrets.")
+        return False
+
+    client = genai.Client(api_key=api_key)
     
-    CRITICAL LOGIC RULES:
-    1. For 'Coding' or 'Logic' questions, you are permitted to use the '4 words, 3 codes' format. 
-    2. If you use this format, the puzzle MUST be solvable: the codes provided must map consistently to the letters or patterns of 3 of the words, allowing the user to deduce the answer.
-    3. If the puzzle is a sequence, ensure the math or letter pattern is verifiable and consistent.
-    4. DO NOT generate 'impossible' puzzles. Every question must have one clear, correct answer.
-    5. Provide exactly 5 distinct options (A, B, C, D, E) for every question.
-    6. The hint MUST be dyslexia-friendly (simple, clear steps).
-    7. Provide an exam technique (e.g., 'Look for the letter that appears in all 3 codes').
+    # We provide an example of a perfect puzzle to "teach" the AI
+    prompt = f"""
+    You are a professional GL 11+ exam question creator. Generate {num_questions} questions for {subject} covering: {', '.join(selected_topics)}.
+    
+    ### GOLD STANDARD EXAMPLE (Follow this logic strictly):
+    Topic: Letter-Word Codes
+    Question: Four words: MATE, TEAM, TAME, MEAT. Three codes: 4123, 3124, 2143. What is the code for TEAM?
+    Logic Check: 
+    - MATE: letters M-A-T-E map to 4-1-2-3
+    - TEAM: letters T-E-A-M map to 2-3-1-4
+    - TAME: letters T-A-M-E map to 2-1-4-3
+    - MEAT: letters M-E-A-T map to 4-3-1-2
+    (The AI must generate a coherent mapping like this before outputting the question).
+    
+    ### MANDATORY RULES:
+    1. SOLVABILITY: Before generating, create a logic table in your 'mind'. If you cannot map the numbers to letters consistently, do not output the question.
+    2. STRUCTURE: Provide exactly 5 options (A, B, C, D, E).
+    3. HINTS/TECHNIQUE: Hints must explain the deduction method.
+    4. VARIETY: Do not repeat the same question twice.
     """
     
     try:
@@ -134,9 +148,10 @@ def generate_quiz(subject, selected_topics, num_questions, api_key):
             config={
                 'response_mime_type': 'application/json',
                 'response_schema': QuizData,
-                'temperature': 0.2, 
+                'temperature': 0.1, # Even tighter logic control
             }
         )
+        # ... rest of your existing function code remains the same ...
         data = json.loads(response.text)
         st.session_state.quiz_questions = data["questions"]
         st.session_state.user_answers = {}
