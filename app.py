@@ -112,6 +112,7 @@ def generate_quiz(subject, selected_topics, num_questions, api_key):
         return False
 
     client = genai.Client(api_key=api_key)
+    
   prompt = f"""
     You are an expert tutor for the UK GL 11+ exams. Generate exactly {num_questions} unique practice questions.
     Distribute the questions evenly across these topics for the subject '{subject}': {', '.join(selected_topics)}
