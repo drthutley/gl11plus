@@ -12,24 +12,44 @@ st.set_page_config(page_title="GL 11+ Practice Partner", page_icon="✏️", lay
 st.markdown("""
 <style>
     .stApp { background-color: #fdfbf7 !important; color: #2b2b2b !important; }
-    p, span, label, li, div, input {
+    
+    /* Removed 'span' and 'div' to prevent Streamlit UI bugs (like 'arrow_right' text showing up) */
+    p, label, li, .stMarkdown, .stText {
         font-family: 'Verdana', 'Comic Sans MS', sans-serif !important;
         font-size: 19px !important;
         line-height: 1.8 !important;
         letter-spacing: 0.06em !important;
     }
-    h1, h2, h3, h4 { font-family: 'Verdana', sans-serif !important; color: #1a365d !important; font-weight: bold !important; margin-bottom: 20px !important; }
-    .stTextInput>div>div>input { background-color: #ffffff !important; border: 2px solid #cbd5e1 !important; border-radius: 8px !important; padding: 12px !important; }
-    .stButton>button { background-color: #e0f2fe !important; color: #0369a1 !important; border: 2px solid #0369a1 !important; border-radius: 10px !important; font-size: 18px !important; font-weight: bold !important; padding: 10px 24px !important; transition: all 0.2s ease; }
+    
+    h1, h2, h3, h4 { 
+        font-family: 'Verdana', sans-serif !important; 
+        color: #1a365d !important; 
+        font-weight: bold !important; 
+        margin-bottom: 20px !important; 
+    }
+    
+    .stButton>button { 
+        background-color: #e0f2fe !important; 
+        color: #0369a1 !important; 
+        border: 2px solid #0369a1 !important; 
+        border-radius: 10px !important; 
+        font-size: 18px !important; 
+        font-weight: bold !important; 
+        padding: 10px 24px !important; 
+        transition: all 0.2s ease; 
+    }
     .stButton>button:hover { background-color: #bae6fd !important; border-color: #0284c7 !important; }
     
     /* Progress bar styling */
     .stProgress > div > div > div > div { background-color: #0369a1 !important; }
+    
+    /* Make radio buttons larger and easier to read */
+    .stRadio label { font-size: 20px !important; padding-bottom: 8px !important; }
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. FULL SYLLABUS MENU (Flattened for easier selection)
+# 2. FULL SYLLABUS MENU
 # ==========================================
 TOPICS = {
     "English": [
@@ -61,17 +81,21 @@ TOPICS = {
 # ==========================================
 # 3. AI STRUCTURE & STATE MANAGEMENT
 # ==========================================
-# Note: Added 'exam_technique' to the required AI output
+# Updated schema to force strict A, B, C, D, E formatting
 class QuestionData(BaseModel):
-    question: str = Field(description="The GL 11+ style question text. Include multiple choice options in text if applicable.")
-    answer: str = Field(description="The exact target answer word or number.")
+    question: str = Field(description="The GL 11+ style question text. DO NOT include the options in this text.")
+    option_a: str = Field(description="The text for option A")
+    option_b: str = Field(description="The text for option B")
+    option_c: str = Field(description="The text for option C")
+    option_d: str = Field(description="The text for option D")
+    option_e: str = Field(description="The text for option E")
+    correct_letter: str = Field(description="The correct answer letter, exactly 'A', 'B', 'C', 'D', or 'E'")
     hint: str = Field(description="A clear, dyslexia-friendly hint to solve the problem.")
-    exam_technique: str = Field(description="A specific exam technique or time-saving trick for this specific type of question.")
+    exam_technique: str = Field(description="An exam technique or time-saving trick for this type of question.")
 
 class QuizData(BaseModel):
     questions: list[QuestionData]
 
-# Initialize all the variables needed to run a batch quiz
 if "quiz_active" not in st.session_state:
     st.session_state.quiz_active = False
 if "quiz_questions" not in st.session_state:
@@ -82,13 +106,15 @@ if "user_score" not in st.session_state:
     st.session_state.user_score = 0
 if "answered_current" not in st.session_state:
     st.session_state.answered_current = False
+if "current_subject" not in st.session_state:
+    st.session_state.current_subject = "English"
 
 def generate_quiz(subject, selected_topics, num_questions, api_key):
     if not api_key:
-        st.error("⚠️ Please ensure your API key is in Streamlit Secrets.")
+        st.error("Please ensure your API key is in Streamlit Secrets.")
         return False
     if not selected_topics:
-        st.error("⚠️ Please select at least one topic.")
+        st.error("Please select at least one topic.")
         return False
 
     client = genai.Client(api_key=api_key)
@@ -99,10 +125,9 @@ def generate_quiz(subject, selected_topics, num_questions, api_key):
     
     Requirements:
     1. Strictly align with the GL 11+ standard.
-    2. Format options clearly within the question text if it is multiple choice.
-    3. The answer must be a single word, short phrase, or number.
-    4. The hint MUST be dyslexia-friendly (clear, simple phrasing).
-    5. Provide an exam technique/strategy for approaching this specific type of question rapidly.
+    2. Provide exactly 5 distinct options (A, B, C, D, E) for every question.
+    3. The hint MUST be dyslexia-friendly (clear, simple phrasing).
+    4. Provide an exam technique/strategy for approaching this specific type of question rapidly.
     """
     
     try:
@@ -121,6 +146,7 @@ def generate_quiz(subject, selected_topics, num_questions, api_key):
         st.session_state.user_score = 0
         st.session_state.quiz_active = True
         st.session_state.answered_current = False
+        st.session_state.current_subject = subject
         return True
     except Exception as e:
         st.error(f"Failed to generate questions. Error: {e}")
@@ -129,36 +155,39 @@ def generate_quiz(subject, selected_topics, num_questions, api_key):
 # ==========================================
 # 4. APP INTERFACE & SETUP MENU
 # ==========================================
-st.title("✏️ GL 11+ Practice Partner")
+st.title("GL 11+ Practice Partner")
 
 try:
     secret_api_key = st.secrets["GEMINI_API_KEY"]
 except:
     secret_api_key = ""
-    st.error("⚠️ API Key not found in Streamlit secrets.")
+    st.error("API Key not found in Streamlit secrets.")
 
-# Setup menu folds up automatically when a quiz is running
-with st.expander("⚙️ Quiz Setup (Click to open/close)", expanded=(not st.session_state.quiz_active)):
+with st.expander("Quiz Setup", expanded=(not st.session_state.quiz_active)):
     
-    selected_subject = st.selectbox("📚 Choose Subject", ["English", "Verbal Reasoning"])
+    selected_subject = st.selectbox("Choose Subject", ["English", "Verbal Reasoning"])
     
-    st.markdown("### 🎯 Choose Topics")
+    st.markdown("### Choose Topics")
     all_topics = TOPICS[selected_subject]
     
-    # Checkbox to easily select everything
-    select_all = st.checkbox("☑️ Select ALL topics in this subject", value=True)
+    select_all = st.checkbox("Select ALL topics in this subject", value=True)
+    selected_topics = []
     
     if select_all:
         selected_topics = all_topics
-        st.info("All topics selected! Uncheck the box above to pick specific topics.")
     else:
-        selected_topics = st.multiselect("Pick specific topics to practice:", all_topics, default=all_topics[:3])
+        # Displays the checkboxes in a neat two-column layout
+        col1, col2 = st.columns(2)
+        for i, topic in enumerate(all_topics):
+            with (col1 if i % 2 == 0 else col2):
+                if st.checkbox(topic, key=f"cb_{selected_subject}_{i}"):
+                    selected_topics.append(topic)
 
-    st.markdown("### 🔢 Choose Quiz Length")
+    st.markdown("### Choose Quiz Length")
     num_questions = st.selectbox("How many questions?", [10, 20, 30, 40])
     
-    if st.button("🚀 Generate Quiz"):
-        with st.spinner(f"🧠 Generating {num_questions} questions... (This takes about 10-20 seconds)"):
+    if st.button("Generate Quiz"):
+        with st.spinner(f"Generating {num_questions} questions..."):
             success = generate_quiz(selected_subject, selected_topics, num_questions, secret_api_key)
             if success:
                 st.rerun()
@@ -166,7 +195,22 @@ with st.expander("⚙️ Quiz Setup (Click to open/close)", expanded=(not st.ses
 st.markdown("---")
 
 # ==========================================
-# 5. ACTIVE QUIZ AREA
+# 5. ALPHABET HELPER (FOR VR ONLY)
+# ==========================================
+if st.session_state.quiz_active and st.session_state.current_subject == "Verbal Reasoning":
+    st.markdown("""
+    <div style="background-color: #ffffff; padding: 15px; border-radius: 8px; border: 2px solid #cbd5e1; text-align: center; margin-bottom: 25px;">
+        <div style="font-family: 'Courier New', Courier, monospace; font-size: 22px; font-weight: bold; letter-spacing: 6px; color: #1e293b;">
+            A B C D E F G H I J K L M N O P Q R S T U V W X Y Z
+        </div>
+        <div style="font-family: 'Courier New', Courier, monospace; font-size: 14px; letter-spacing: 12px; color: #64748b; margin-left: 6px;">
+            1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# ==========================================
+# 6. ACTIVE QUIZ AREA
 # ==========================================
 if st.session_state.quiz_active and len(st.session_state.quiz_questions) > 0:
     
@@ -174,63 +218,76 @@ if st.session_state.quiz_active and len(st.session_state.quiz_questions) > 0:
     current_q_num = st.session_state.current_index + 1
     current_data = st.session_state.quiz_questions[st.session_state.current_index]
     
-    # Top bar showing progress and score
     colA, colB = st.columns(2)
     with colA:
         st.markdown(f"**Question {current_q_num} of {total_q}**")
     with colB:
-        st.markdown(f"**🏆 Score: {st.session_state.user_score}**", help="Points awarded for correct answers on the first try.")
+        st.markdown(f"**Score: {st.session_state.user_score}**")
     
     st.progress(current_q_num / total_q)
     
-    # Display the Question
+    # Display the Question Text
     st.info(current_data["question"])
     
-    # We add the index to the key so the input box clears completely on every new question
-    user_input = st.text_input("Type your answer below:", value="", key=f"ans_input_{st.session_state.current_index}")
+    # Format the 5 multiple choice options
+    radio_options = [
+        f"A) {current_data['option_a']}",
+        f"B) {current_data['option_b']}",
+        f"C) {current_data['option_c']}",
+        f"D) {current_data['option_d']}",
+        f"E) {current_data['option_e']}"
+    ]
+    
+    user_choice = st.radio(
+        "Select your answer:", 
+        radio_options, 
+        index=None, 
+        key=f"radio_{st.session_state.current_index}"
+    )
     
     col1, col2 = st.columns([1, 1])
     
     with col1:
-        if st.button("✔️ Check Answer"):
-            target = str(current_data["answer"]).strip().lower()
-            user_ans = user_input.strip().lower()
-            
-            if target == user_ans or target in user_ans:
-                if not st.session_state.answered_current:
-                    st.success("🎉 Correct! Great job.")
-                    st.session_state.user_score += 1
-                    st.session_state.answered_current = True
+        if st.button("Check Answer"):
+            if user_choice:
+                # Extracts just the first letter (A, B, C, D, or E) from what the user selected
+                selected_letter = user_choice[0]
+                target_letter = current_data["correct_letter"]
+                
+                if selected_letter == target_letter:
+                    if not st.session_state.answered_current:
+                        st.success("Correct! Great job.")
+                        st.session_state.user_score += 1
+                        st.session_state.answered_current = True
+                    else:
+                        st.success("Correct!")
                 else:
-                    st.success("🎉 Correct!")
+                    st.error("Not quite right. Try looking at the hint below!")
             else:
-                st.error("❌ Not quite right yet. Have another look!")
+                st.warning("Please select an answer first.")
                 
     with col2:
-        # Show "Next Question" or "Finish" depending on where we are in the list
         if current_q_num < total_q:
-            if st.button("➡️ Next Question"):
+            if st.button("Next Question"):
                 st.session_state.current_index += 1
                 st.session_state.answered_current = False
                 st.rerun()
         else:
-            if st.button("🏁 Finish Quiz"):
+            if st.button("Finish Quiz"):
                 st.session_state.quiz_active = False
                 st.balloons()
                 st.success(f"Quiz Complete! Final Score: {st.session_state.user_score} / {total_q}")
                 st.rerun()
 
-    # The hint is now neatly tucked away at the bottom
-    st.markdown("<br>", unsafe_allow_html=True) # Adds a little visual breathing room
-    with st.expander("💡 Stuck? Click here for a Hint & Exam Technique"):
-        st.markdown("### 🔍 Hint")
+    # Hint and Technique section
+    st.markdown("<br>", unsafe_allow_html=True)
+    with st.expander("Stuck? Click here for a Hint & Exam Technique"):
+        st.markdown("### Hint")
         st.warning(current_data["hint"])
-        st.markdown("### ⏱️ Exam Technique")
+        st.markdown("### Exam Technique")
         st.success(current_data["exam_technique"])
-        
-        # Optionally show the hidden answer for parent assistance
         st.markdown("---")
-        st.write(f"*Parent check — Target Answer: {current_data['answer']}*")
+        st.write(f"*Parent check — Correct Answer: {current_data['correct_letter']}*")
 
 elif not st.session_state.quiz_active:
-    st.info("👈 Open the setup menu above to generate a new quiz!")
+    st.info("Open the setup menu above to generate a new quiz!")
