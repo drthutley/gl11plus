@@ -113,7 +113,7 @@ def generate_quiz(subject, selected_topics, num_questions, api_key):
 
     client = genai.Client(api_key=api_key)
     
-  prompt = f"""
+    prompt = f"""
     You are an expert tutor for the UK GL 11+ exams. Generate exactly {num_questions} unique practice questions.
     Distribute the questions evenly across these topics for the subject '{subject}': {', '.join(selected_topics)}
     
@@ -125,15 +125,19 @@ def generate_quiz(subject, selected_topics, num_questions, api_key):
     5. The hint MUST be dyslexia-friendly (clear, simple phrasing).
     6. Provide an exam technique/strategy for approaching this specific type of question rapidly.
     """
+    
     try:
         response = client.models.generate_content(
-            model='gemini-3.5-flash', contents=prompt,
-            config={'response_mime_type': 'application/json', 'response_schema': QuizData, 'temperature': 0.7}
+            model='gemini-3.5-flash',
+            contents=prompt,
+            config={
+                'response_mime_type': 'application/json',
+                'response_schema': QuizData,
+                'temperature': 0.7, 
+            }
         )
         data = json.loads(response.text)
         st.session_state.quiz_questions = data["questions"]
-        
-        # Reset all stats for a new quiz
         st.session_state.current_index = 0
         st.session_state.user_score = 0
         st.session_state.current_streak = 0
