@@ -113,13 +113,6 @@ def generate_quiz(subject, selected_topics, num_questions, api_key):
 
     client = genai.Client(api_key=api_key)
     
- def generate_quiz(subject, selected_topics, num_questions, api_key):
-    if not api_key:
-        st.error("Please ensure your API key is in Streamlit Secrets.")
-        return False
-    
-    client = genai.Client(api_key=api_key)
-    
     prompt = f"""
     You are a professional GL 11+ exam question creator. Generate exactly {num_questions} unique practice questions.
     Distribute the questions evenly across: {', '.join(selected_topics)}.
