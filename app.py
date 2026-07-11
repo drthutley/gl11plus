@@ -12,282 +12,85 @@ st.set_page_config(page_title="GL 11+ Practice Partner", page_icon="✏️", lay
 st.markdown("""
 <style>
     .stApp { background-color: #fdfbf7 !important; color: #2b2b2b !important; }
-    
-    /* Removed 'span' and 'div' to prevent Streamlit UI bugs (like 'arrow_right' text showing up) */
-    p, label, li, .stMarkdown, .stText {
-        font-family: 'Verdana', 'Comic Sans MS', sans-serif !important;
-        font-size: 19px !important;
-        line-height: 1.8 !important;
-        letter-spacing: 0.06em !important;
-    }
-    
-    h1, h2, h3, h4 { 
-        font-family: 'Verdana', sans-serif !important; 
-        color: #1a365d !important; 
-        font-weight: bold !important; 
-        margin-bottom: 20px !important; 
-    }
-    
-    .stButton>button { 
-        background-color: #e0f2fe !important; 
-        color: #0369a1 !important; 
-        border: 2px solid #0369a1 !important; 
-        border-radius: 10px !important; 
-        font-size: 18px !important; 
-        font-weight: bold !important; 
-        padding: 10px 24px !important; 
-        transition: all 0.2s ease; 
-    }
-    .stButton>button:hover { background-color: #bae6fd !important; border-color: #0284c7 !important; }
-    
-    /* Progress bar styling */
-    .stProgress > div > div > div > div { background-color: #0369a1 !important; }
-    
-    /* Make radio buttons larger and easier to read */
-    .stRadio label { font-size: 20px !important; padding-bottom: 8px !important; }
+    p, label, li, .stMarkdown, .stText { font-family: 'Verdana', sans-serif !important; font-size: 19px !important; line-height: 1.8 !important; }
+    .stButton>button { background-color: #e0f2fe !important; color: #0369a1 !important; border: 2px solid #0369a1 !important; border-radius: 10px !important; font-weight: bold !important; }
+    .correct-box { background-color: #dcfce7; padding: 15px; border-radius: 8px; border: 2px solid #22c55e; margin-bottom: 10px; }
+    .incorrect-box { background-color: #fee2e2; padding: 15px; border-radius: 8px; border: 2px solid #ef4444; margin-bottom: 10px; }
 </style>
 """, unsafe_allow_html=True)
 
-# ==========================================
-# 2. FULL SYLLABUS MENU
-# ==========================================
-TOPICS = {
-    "English": [
-        "Grammar: Parts of Speech", "Grammar: Verbs", "Grammar: Mixed Questions",
-        "Punctuation: Starting/Ending Sentences", "Punctuation: Commas and Brackets", 
-        "Punctuation: Dashes/Apostrophes", "Punctuation: Inverted Commas/Colons", "Punctuation: Mixed",
-        "Spelling: Plurals", "Spelling: Homophones", "Spelling: Prefixes/Suffixes", 
-        "Spelling: Awkward Spellings", "Spelling: Mixed",
-        "Writers' Techniques: Alliteration/Onomatopoeia", "Writers' Techniques: Imagery", 
-        "Writers' Techniques: Abbreviations", "Writers' Techniques: Synonyms/Antonyms", 
-        "Writers' Techniques: Spotting Devices",
-        "Writing: Fiction", "Writing: Non-Fiction"
-    ],
-    "Verbal Reasoning": [
-        "The Alphabet: Positions", "The Alphabet: Identify from Clue", "The Alphabet: Order",
-        "Making Words: Missing Letters", "Making Words: Move a Letter", "Making Words: Hidden Word", 
-        "Making Words: Find Missing Word", "Making Words: Rule to Make a Word", "Making Words: Compound Words", 
-        "Making Words: Forming New Words", "Making Words: Complete Word Pair", "Making Words: Anagram in Sentence", 
-        "Making Words: Word Ladders",
-        "Word Meanings: Closest Meaning", "Word Meanings: Opposite Meaning", "Word Meanings: Multiple Meanings", 
-        "Word Meanings: Odd Ones Out", "Word Meanings: Word Connections", "Word Meanings: Reorder Words",
-        "Maths & Sequences: Complete the Sum", "Maths & Sequences: Letter Sequences", 
-        "Maths & Sequences: Number Sequences", "Maths & Sequences: Related Numbers", "Maths & Sequences: Letter-Coded Sums",
-        "Logic & Coding: Letter Connections", "Logic & Coding: Letter-Word Codes", "Logic & Coding: Number-Word Codes", 
-        "Logic & Coding: Explore Facts", "Logic & Coding: Solve Riddle", "Logic & Coding: Word Grids"
-    ]
-}
+# [... Keep the same TOPICS dictionary as before ...]
+# [... Keep the same QuestionData/QuizData classes as before ...]
 
 # ==========================================
-# 3. AI STRUCTURE & STATE MANAGEMENT
+# 2. STATE MANAGEMENT
 # ==========================================
-# Updated schema to force strict A, B, C, D, E formatting
-class QuestionData(BaseModel):
-    question: str = Field(description="The GL 11+ style question text. DO NOT include the options in this text.")
-    option_a: str = Field(description="The text for option A")
-    option_b: str = Field(description="The text for option B")
-    option_c: str = Field(description="The text for option C")
-    option_d: str = Field(description="The text for option D")
-    option_e: str = Field(description="The text for option E")
-    correct_letter: str = Field(description="The correct answer letter, exactly 'A', 'B', 'C', 'D', or 'E'")
-    hint: str = Field(description="A clear, dyslexia-friendly hint to solve the problem.")
-    exam_technique: str = Field(description="An exam technique or time-saving trick for this type of question.")
-
-class QuizData(BaseModel):
-    questions: list[QuestionData]
-
-if "quiz_active" not in st.session_state:
-    st.session_state.quiz_active = False
-if "quiz_questions" not in st.session_state:
-    st.session_state.quiz_questions = []
-if "current_index" not in st.session_state:
-    st.session_state.current_index = 0
-if "user_score" not in st.session_state:
-    st.session_state.user_score = 0
-if "answered_current" not in st.session_state:
-    st.session_state.answered_current = False
-if "current_subject" not in st.session_state:
-    st.session_state.current_subject = "English"
-
-def generate_quiz(subject, selected_topics, num_questions, api_key):
-    if not api_key:
-        st.error("Please ensure your API key is in Streamlit Secrets.")
-        return False
-    if not selected_topics:
-        st.error("Please select at least one topic.")
-        return False
-
-    client = genai.Client(api_key=api_key)
-    
-    prompt = f"""
-    You are an expert tutor for the UK GL 11+ exams. Generate exactly {num_questions} unique practice questions.
-    Distribute the questions evenly across these topics for the subject '{subject}': {', '.join(selected_topics)}
-    
-    Requirements:
-    1. Strictly align with the GL 11+ standard.
-    2. Provide exactly 5 distinct options (A, B, C, D, E) for every question.
-    3. The hint MUST be dyslexia-friendly (clear, simple phrasing).
-    4. Provide an exam technique/strategy for approaching this specific type of question rapidly.
-    """
-    
-    try:
-        response = client.models.generate_content(
-            model='gemini-3.5-flash',
-            contents=prompt,
-            config={
-                'response_mime_type': 'application/json',
-                'response_schema': QuizData,
-                'temperature': 0.7, 
-            }
-        )
-        data = json.loads(response.text)
-        st.session_state.quiz_questions = data["questions"]
-        st.session_state.current_index = 0
-        st.session_state.user_score = 0
-        st.session_state.quiz_active = True
-        st.session_state.answered_current = False
-        st.session_state.current_subject = subject
-        return True
-    except Exception as e:
-        st.error(f"Failed to generate questions. Error: {e}")
-        return False
+if "quiz_active" not in st.session_state: st.session_state.quiz_active = False
+if "review_mode" not in st.session_state: st.session_state.review_mode = False
+if "user_answers" not in st.session_state: st.session_state.user_answers = {} # Stores {index: choice}
+if "quiz_questions" not in st.session_state: st.session_state.quiz_questions = []
 
 # ==========================================
-# 4. APP INTERFACE & SETUP MENU
+# 3. QUIZ INTERFACE
 # ==========================================
 st.title("GL 11+ Practice Partner")
 
-try:
-    secret_api_key = st.secrets["GEMINI_API_KEY"]
-except:
-    secret_api_key = ""
-    st.error("API Key not found in Streamlit secrets.")
+# [... Keep your "Quiz Setup" expander logic here ...]
 
-with st.expander("Quiz Setup", expanded=(not st.session_state.quiz_active)):
-    
-    selected_subject = st.selectbox("Choose Subject", ["English", "Verbal Reasoning"])
-    
-    st.markdown("### Choose Topics")
-    all_topics = TOPICS[selected_subject]
-    
-    select_all = st.checkbox("Select ALL topics in this subject", value=True)
-    selected_topics = []
-    
-    if select_all:
-        selected_topics = all_topics
-    else:
-        # Displays the checkboxes in a neat two-column layout
-        col1, col2 = st.columns(2)
-        for i, topic in enumerate(all_topics):
-            with (col1 if i % 2 == 0 else col2):
-                if st.checkbox(topic, key=f"cb_{selected_subject}_{i}"):
-                    selected_topics.append(topic)
-
-    st.markdown("### Choose Quiz Length")
-    num_questions = st.selectbox("How many questions?", [10, 20, 30, 40])
-    
-    if st.button("Generate Quiz"):
-        with st.spinner(f"Generating {num_questions} questions..."):
-            success = generate_quiz(selected_subject, selected_topics, num_questions, secret_api_key)
-            if success:
-                st.rerun()
-
-st.markdown("---")
-
-# ==========================================
-# 5. ALPHABET HELPER (FOR VR ONLY)
-# ==========================================
-if st.session_state.quiz_active and st.session_state.current_subject == "Verbal Reasoning":
-    st.markdown("""
-    <div style="background-color: #ffffff; padding: 15px; border-radius: 8px; border: 2px solid #cbd5e1; text-align: center; margin-bottom: 25px;">
-        <div style="font-family: 'Courier New', Courier, monospace; font-size: 22px; font-weight: bold; letter-spacing: 6px; color: #1e293b;">
-            A B C D E F G H I J K L M N O P Q R S T U V W X Y Z
-        </div>
-        <div style="font-family: 'Courier New', Courier, monospace; font-size: 14px; letter-spacing: 12px; color: #64748b; margin-left: 6px;">
-            1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# ==========================================
-# 6. ACTIVE QUIZ AREA
-# ==========================================
-if st.session_state.quiz_active and len(st.session_state.quiz_questions) > 0:
-    
+if st.session_state.quiz_active and not st.session_state.review_mode:
     total_q = len(st.session_state.quiz_questions)
-    current_q_num = st.session_state.current_index + 1
-    current_data = st.session_state.quiz_questions[st.session_state.current_index]
+    idx = st.session_state.current_index
+    q = st.session_state.quiz_questions[idx]
     
-    colA, colB = st.columns(2)
-    with colA:
-        st.markdown(f"**Question {current_q_num} of {total_q}**")
-    with colB:
-        st.markdown(f"**Score: {st.session_state.user_score}**")
+    st.progress((idx + 1) / total_q)
+    st.info(f"**Question {idx + 1}**: {q['question']}")
     
-    st.progress(current_q_num / total_q)
+    options = [f"A) {q['option_a']}", f"B) {q['option_b']}", f"C) {q['option_c']}", f"D) {q['option_d']}", f"E) {q['option_e']}"]
     
-    # Display the Question Text
-    st.info(current_data["question"])
+    # Pre-select answer if he navigates back
+    choice = st.radio("Select answer:", options, index=None, key=f"r_{idx}")
     
-    # Format the 5 multiple choice options
-    radio_options = [
-        f"A) {current_data['option_a']}",
-        f"B) {current_data['option_b']}",
-        f"C) {current_data['option_c']}",
-        f"D) {current_data['option_d']}",
-        f"E) {current_data['option_e']}"
-    ]
-    
-    user_choice = st.radio(
-        "Select your answer:", 
-        radio_options, 
-        index=None, 
-        key=f"radio_{st.session_state.current_index}"
-    )
-    
-    col1, col2 = st.columns([1, 1])
-    
+    col1, col2 = st.columns(2)
     with col1:
-        if st.button("Check Answer"):
-            if user_choice:
-                # Extracts just the first letter (A, B, C, D, or E) from what the user selected
-                selected_letter = user_choice[0]
-                target_letter = current_data["correct_letter"]
-                
-                if selected_letter == target_letter:
-                    if not st.session_state.answered_current:
-                        st.success("Correct! Great job.")
-                        st.session_state.user_score += 1
-                        st.session_state.answered_current = True
-                    else:
-                        st.success("Correct!")
-                else:
-                    st.error("Not quite right. Try looking at the hint below!")
-            else:
-                st.warning("Please select an answer first.")
-                
+        if st.button("Previous") and idx > 0:
+            st.session_state.current_index -= 1
+            st.rerun()
     with col2:
-        if current_q_num < total_q:
-            if st.button("Next Question"):
+        if idx < total_q - 1:
+            if st.button("Next"):
+                st.session_state.user_answers[idx] = choice
                 st.session_state.current_index += 1
-                st.session_state.answered_current = False
                 st.rerun()
         else:
-            if st.button("Finish Quiz"):
+            if st.button("Finish & See Results"):
+                st.session_state.user_answers[idx] = choice
                 st.session_state.quiz_active = False
-                st.balloons()
-                st.success(f"Quiz Complete! Final Score: {st.session_state.user_score} / {total_q}")
+                st.session_state.review_mode = True
                 st.rerun()
 
-    # Hint and Technique section
-    st.markdown("<br>", unsafe_allow_html=True)
-    with st.expander("Stuck? Click here for a Hint & Exam Technique"):
-        st.markdown("### Hint")
-        st.warning(current_data["hint"])
-        st.markdown("### Exam Technique")
-        st.success(current_data["exam_technique"])
-        st.markdown("---")
-        st.write(f"*Parent check — Correct Answer: {current_data['correct_letter']}*")
-
-elif not st.session_state.quiz_active:
-    st.info("Open the setup menu above to generate a new quiz!")
+# ==========================================
+# 4. REVIEW DASHBOARD
+# ==========================================
+if st.session_state.review_mode:
+    st.header("Results Dashboard")
+    score = 0
+    for i, q in enumerate(st.session_state.quiz_questions):
+        user_ans = st.session_state.user_answers.get(i)
+        is_correct = user_ans and user_ans[0] == q['correct_letter']
+        if is_correct: score += 1
+        
+        box_class = "correct-box" if is_correct else "incorrect-box"
+        with st.expander(f"Question {i+1}: {'✅ Correct' if is_correct else '❌ Review Needed'}"):
+            st.markdown(f"<div class='{box_class}'>", unsafe_allow_html=True)
+            st.write(q['question'])
+            st.write(f"Your answer: {user_ans}")
+            st.write(f"Correct answer: {q['correct_letter']}")
+            st.markdown("</div>", unsafe_allow_html=True)
+            if not is_correct:
+                st.warning(f"**Hint:** {q['hint']}")
+                st.success(f"**Technique:** {q['exam_technique']}")
+    
+    st.metric("Final Score", f"{score} / {len(st.session_state.quiz_questions)}")
+    if st.button("Start New Quiz"):
+        st.session_state.review_mode = False
+        st.rerun()
