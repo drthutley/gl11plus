@@ -118,12 +118,13 @@ def generate_quiz(subject, selected_topics, num_questions, api_key):
     Distribute the questions evenly across these topics for the subject '{subject}': {', '.join(selected_topics)}
     
     CRITICAL LOGIC RULES:
-    1. If creating a coding/logic puzzle, ensure the logic is 100% sound. If you provide words, you MUST provide the same number of codes.
-    2. If the question involves deduction, ensure there is enough information provided to uniquely identify the correct answer. Do not create 'impossible' puzzles.
-    3. Strictly align with GL 11+ standards.
-    4. Provide exactly 5 distinct options (A, B, C, D, E) for every question.
-    5. The hint MUST be dyslexia-friendly (clear, simple phrasing).
-    6. Provide an exam technique/strategy for approaching this specific type of question rapidly.
+    1. For 'Coding' or 'Logic' questions, you are permitted to use the '4 words, 3 codes' format. 
+    2. If you use this format, the puzzle MUST be solvable: the codes provided must map consistently to the letters or patterns of 3 of the words, allowing the user to deduce the answer.
+    3. If the puzzle is a sequence, ensure the math or letter pattern is verifiable and consistent.
+    4. DO NOT generate 'impossible' puzzles. Every question must have one clear, correct answer.
+    5. Provide exactly 5 distinct options (A, B, C, D, E) for every question.
+    6. The hint MUST be dyslexia-friendly (simple, clear steps).
+    7. Provide an exam technique (e.g., 'Look for the letter that appears in all 3 codes').
     """
     
     try:
@@ -133,17 +134,16 @@ def generate_quiz(subject, selected_topics, num_questions, api_key):
             config={
                 'response_mime_type': 'application/json',
                 'response_schema': QuizData,
-                'temperature': 0.7, 
+                'temperature': 0.2, 
             }
         )
         data = json.loads(response.text)
         st.session_state.quiz_questions = data["questions"]
+        st.session_state.user_answers = {}
         st.session_state.current_index = 0
         st.session_state.user_score = 0
-        st.session_state.current_streak = 0
-        st.session_state.highest_streak = 0
         st.session_state.quiz_active = True
-        st.session_state.answered_current = False
+        st.session_state.review_mode = False
         st.session_state.current_subject = subject
         return True
     except Exception as e:
