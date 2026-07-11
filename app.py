@@ -7,11 +7,7 @@ from pydantic import BaseModel, Field
 # ==========================================
 # 1. PAGE CONFIG & DYSLEXIA-FRIENDLY CSS
 # ==========================================
-st.set_page_config(
-    page_title="GL 11+ Practice Partner",
-    page_icon="✏️",
-    layout="centered"
-)
+st.set_page_config(page_title="GL 11+ Practice Partner", page_icon="✏️", layout="centered")
 
 st.markdown("""
 <style>
@@ -26,64 +22,87 @@ st.markdown("""
     .stTextInput>div>div>input { background-color: #ffffff !important; border: 2px solid #cbd5e1 !important; border-radius: 8px !important; padding: 12px !important; }
     .stButton>button { background-color: #e0f2fe !important; color: #0369a1 !important; border: 2px solid #0369a1 !important; border-radius: 10px !important; font-size: 18px !important; font-weight: bold !important; padding: 10px 24px !important; transition: all 0.2s ease; }
     .stButton>button:hover { background-color: #bae6fd !important; border-color: #0284c7 !important; }
-    div[data-testid="stHorizontalBlock"] > div:nth-child(2) button { background-color: #fef2f2 !important; color: #991b1b !important; border: 2px solid #f87171 !important; }
-    div[data-testid="stHorizontalBlock"] > div:nth-child(2) button:hover { background-color: #fee2e2 !important; }
+    
+    /* Progress bar styling */
+    .stProgress > div > div > div > div { background-color: #0369a1 !important; }
 </style>
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. FULL SYLLABUS MENU 
+# 2. FULL SYLLABUS MENU (Flattened for easier selection)
 # ==========================================
-SYLLABUS_MENU = {
-    "English": {
-        "Section One — Grammar": ["Parts of Speech", "Verbs", "Mixed Grammar Questions"],
-        "Section Two — Punctuation": ["Starting and Ending Sentences", "Commas and Brackets", "Dashes and Apostrophes", "Inverted Commas and Colons", "Mixed Punctuation Questions"],
-        "Section Three — Spelling": ["Plurals", "Homophones", "Prefixes and Suffixes", "Awkward Spellings", "Mixed Spelling Questions"],
-        "Section Four — Writers' Techniques": ["Alliteration and Onomatopoeia", "Imagery", "Abbreviations", "Synonyms and Antonyms", "Spotting and Understanding Devices"],
-        "Section Five — Writing": ["Writing Fiction", "Writing Non-Fiction"]
-    },
-    "Verbal Reasoning": {
-        "Section One — The Alphabet": ["Alphabet Positions", "Identify a Letter from a Clue", "Alphabetical Order"],
-        "Section Two — Making Words": ["Missing Letters", "Move a Letter", "Hidden Word", "Find the Missing Word", "Use a Rule to Make a Word", "Compound Words", "Forming New Words", "Complete a Word Pair", "Anagram in a Sentence", "Word Ladders"],
-        "Section Three — Word Meanings": ["Closest Meaning", "Opposite Meaning", "Multiple Meanings", "Odd Ones Out", "Word Connections", "Reorder Words to Make a Sentence"],
-        "Section Four — Maths and Sequences": ["Complete the Sum", "Letter Sequences", "Number Sequences", "Related Numbers", "Letter-Coded Sums"],
-        "Section Five — Logic and Coding": ["Letter Connections", "Letter-Word Codes", "Number-Word Codes", "Explore the Facts", "Solve the Riddle", "Word Grids"]
-    }
+TOPICS = {
+    "English": [
+        "Grammar: Parts of Speech", "Grammar: Verbs", "Grammar: Mixed Questions",
+        "Punctuation: Starting/Ending Sentences", "Punctuation: Commas and Brackets", 
+        "Punctuation: Dashes/Apostrophes", "Punctuation: Inverted Commas/Colons", "Punctuation: Mixed",
+        "Spelling: Plurals", "Spelling: Homophones", "Spelling: Prefixes/Suffixes", 
+        "Spelling: Awkward Spellings", "Spelling: Mixed",
+        "Writers' Techniques: Alliteration/Onomatopoeia", "Writers' Techniques: Imagery", 
+        "Writers' Techniques: Abbreviations", "Writers' Techniques: Synonyms/Antonyms", 
+        "Writers' Techniques: Spotting Devices",
+        "Writing: Fiction", "Writing: Non-Fiction"
+    ],
+    "Verbal Reasoning": [
+        "The Alphabet: Positions", "The Alphabet: Identify from Clue", "The Alphabet: Order",
+        "Making Words: Missing Letters", "Making Words: Move a Letter", "Making Words: Hidden Word", 
+        "Making Words: Find Missing Word", "Making Words: Rule to Make a Word", "Making Words: Compound Words", 
+        "Making Words: Forming New Words", "Making Words: Complete Word Pair", "Making Words: Anagram in Sentence", 
+        "Making Words: Word Ladders",
+        "Word Meanings: Closest Meaning", "Word Meanings: Opposite Meaning", "Word Meanings: Multiple Meanings", 
+        "Word Meanings: Odd Ones Out", "Word Meanings: Word Connections", "Word Meanings: Reorder Words",
+        "Maths & Sequences: Complete the Sum", "Maths & Sequences: Letter Sequences", 
+        "Maths & Sequences: Number Sequences", "Maths & Sequences: Related Numbers", "Maths & Sequences: Letter-Coded Sums",
+        "Logic & Coding: Letter Connections", "Logic & Coding: Letter-Word Codes", "Logic & Coding: Number-Word Codes", 
+        "Logic & Coding: Explore Facts", "Logic & Coding: Solve Riddle", "Logic & Coding: Word Grids"
+    ]
 }
 
 # ==========================================
 # 3. AI STRUCTURE & STATE MANAGEMENT
 # ==========================================
+# Note: Added 'exam_technique' to the required AI output
 class QuestionData(BaseModel):
-    question: str = Field(description="The GL 11+ style question text. Include multiple choice options in the text if applicable.")
+    question: str = Field(description="The GL 11+ style question text. Include multiple choice options in text if applicable.")
     answer: str = Field(description="The exact target answer word or number.")
-    hint: str = Field(description="A clear, dyslexia-friendly tip breaking down the rule.")
+    hint: str = Field(description="A clear, dyslexia-friendly hint to solve the problem.")
+    exam_technique: str = Field(description="A specific exam technique or time-saving trick for this specific type of question.")
 
-if "current_q" not in st.session_state:
-    st.session_state.current_q = None
-if "hint_clicked" not in st.session_state:
-    st.session_state.hint_clicked = False
+class QuizData(BaseModel):
+    questions: list[QuestionData]
+
+# Initialize all the variables needed to run a batch quiz
+if "quiz_active" not in st.session_state:
+    st.session_state.quiz_active = False
+if "quiz_questions" not in st.session_state:
+    st.session_state.quiz_questions = []
+if "current_index" not in st.session_state:
+    st.session_state.current_index = 0
 if "user_score" not in st.session_state:
     st.session_state.user_score = 0
-if "answered" not in st.session_state:
-    st.session_state.answered = False
+if "answered_current" not in st.session_state:
+    st.session_state.answered_current = False
 
-def generate_ai_question(subject, section, topic, api_key):
+def generate_quiz(subject, selected_topics, num_questions, api_key):
     if not api_key:
-        st.error("⚠️ Please enter your Gemini API Key in the settings menu.")
-        return
+        st.error("⚠️ Please ensure your API key is in Streamlit Secrets.")
+        return False
+    if not selected_topics:
+        st.error("⚠️ Please select at least one topic.")
+        return False
 
     client = genai.Client(api_key=api_key)
     
     prompt = f"""
-    You are an expert tutor for the UK GL 11+ exams. Generate a single, unique practice question for:
-    Subject: {subject} | Section: {section} | Topic: {topic}
+    You are an expert tutor for the UK GL 11+ exams. Generate exactly {num_questions} unique practice questions.
+    Distribute the questions evenly across these topics for the subject '{subject}': {', '.join(selected_topics)}
     
     Requirements:
-    1. Strictly align with the GL 11+ standard for this specific topic.
-    2. If the topic requires multiple choice, format the options clearly within the question text.
+    1. Strictly align with the GL 11+ standard.
+    2. Format options clearly within the question text if it is multiple choice.
     3. The answer must be a single word, short phrase, or number.
-    4. The hint MUST be dyslexia-friendly: clear, simple vocabulary, relaxed phrasing, and directly explain the rule without giving away the exact answer.
+    4. The hint MUST be dyslexia-friendly (clear, simple phrasing).
+    5. Provide an exam technique/strategy for approaching this specific type of question rapidly.
     """
     
     try:
@@ -92,87 +111,126 @@ def generate_ai_question(subject, section, topic, api_key):
             contents=prompt,
             config={
                 'response_mime_type': 'application/json',
-                'response_schema': QuestionData,
+                'response_schema': QuizData,
                 'temperature': 0.7, 
             }
         )
         data = json.loads(response.text)
-        st.session_state.current_q = data
-        st.session_state.hint_clicked = False
-        st.session_state.answered = False
+        st.session_state.quiz_questions = data["questions"]
+        st.session_state.current_index = 0
+        st.session_state.user_score = 0
+        st.session_state.quiz_active = True
+        st.session_state.answered_current = False
+        return True
     except Exception as e:
-        st.error(f"Failed to generate question. Please check your API key or try again. Error: {e}")
+        st.error(f"Failed to generate questions. Error: {e}")
+        return False
 
 # ==========================================
-# 4. APP INTERFACE (NO SIDEBAR)
+# 4. APP INTERFACE & SETUP MENU
 # ==========================================
 st.title("✏️ GL 11+ Practice Partner")
 
-# This safely checks if you've set up secrets yet
 try:
     secret_api_key = st.secrets["GEMINI_API_KEY"]
 except:
     secret_api_key = ""
+    st.error("⚠️ API Key not found in Streamlit secrets.")
 
-# This is the new collapsible menu! It starts open, but closes once a question loads
-with st.expander("⚙️ Topic Selection & Settings (Click to open/close)", expanded=(st.session_state.current_q is None)):
-    if not secret_api_key:
-        api_key_input = st.text_input("Enter Gemini API Key", type="password", help="Once you add this in Streamlit Secrets, this box will disappear.")
-    else:
-        api_key_input = secret_api_key
-        st.success("✅ API Key securely loaded in the background!")
+# Setup menu folds up automatically when a quiz is running
+with st.expander("⚙️ Quiz Setup (Click to open/close)", expanded=(not st.session_state.quiz_active)):
     
-    st.markdown("### 📋 Choose Your Subject")
-    selected_subject = st.selectbox("Choose Subject", list(SYLLABUS_MENU.keys()))
-    selected_section = st.selectbox("Choose Section", list(SYLLABUS_MENU[selected_subject].keys()))
-    selected_topic = st.selectbox("Choose Topic Type", SYLLABUS_MENU[selected_subject][selected_section])
+    selected_subject = st.selectbox("📚 Choose Subject", ["English", "Verbal Reasoning"])
+    
+    st.markdown("### 🎯 Choose Topics")
+    all_topics = TOPICS[selected_subject]
+    
+    # Checkbox to easily select everything
+    select_all = st.checkbox("☑️ Select ALL topics in this subject", value=True)
+    
+    if select_all:
+        selected_topics = all_topics
+        st.info("All topics selected! Uncheck the box above to pick specific topics.")
+    else:
+        selected_topics = st.multiselect("Pick specific topics to practice:", all_topics, default=all_topics[:3])
 
-    if st.button("✨ Generate New Question"):
-        with st.spinner("🧠 Generating a unique 11+ challenge..."):
-            generate_ai_question(selected_subject, selected_section, selected_topic, api_key_input)
-            st.rerun()
+    st.markdown("### 🔢 Choose Quiz Length")
+    num_questions = st.selectbox("How many questions?", [10, 20, 30, 40])
+    
+    if st.button("🚀 Generate Quiz"):
+        with st.spinner(f"🧠 Generating {num_questions} questions... (This takes about 10-20 seconds)"):
+            success = generate_quiz(selected_subject, selected_topics, num_questions, secret_api_key)
+            if success:
+                st.rerun()
 
-st.markdown(f"### 🏆 Current Score: `{st.session_state.user_score}`")
 st.markdown("---")
 
 # ==========================================
-# 5. ACTIVE PRACTICE AREA 
+# 5. ACTIVE QUIZ AREA
 # ==========================================
-if st.session_state.current_q:
-    st.markdown("### ❓ Question Challenge:")
-    st.info(st.session_state.current_q["question"])
+if st.session_state.quiz_active and len(st.session_state.quiz_questions) > 0:
     
-    user_input = st.text_input("Type your answer below:", value="", key="user_answer_field")
+    total_q = len(st.session_state.quiz_questions)
+    current_q_num = st.session_state.current_index + 1
+    current_data = st.session_state.quiz_questions[st.session_state.current_index]
     
-    col1, col2, col3 = st.columns([1.2, 1.5, 1.2])
+    # Top bar showing progress and score
+    colA, colB = st.columns(2)
+    with colA:
+        st.markdown(f"**Question {current_q_num} of {total_q}**")
+    with colB:
+        st.markdown(f"**🏆 Score: {st.session_state.user_score}**", help="Points awarded for correct answers on the first try.")
+    
+    st.progress(current_q_num / total_q)
+    
+    # Display the Question
+    st.info(current_data["question"])
+    
+    # We add the index to the key so the input box clears completely on every new question
+    user_input = st.text_input("Type your answer below:", value="", key=f"ans_input_{st.session_state.current_index}")
+    
+    col1, col2 = st.columns([1, 1])
     
     with col1:
         if st.button("✔️ Check Answer"):
-            target = str(st.session_state.current_q["answer"]).strip().lower()
+            target = str(current_data["answer"]).strip().lower()
             user_ans = user_input.strip().lower()
             
             if target == user_ans or target in user_ans:
-                if not st.session_state.answered:
-                    st.success("🎉 Correct! Spot on.")
+                if not st.session_state.answered_current:
+                    st.success("🎉 Correct! Great job.")
                     st.session_state.user_score += 1
-                    st.session_state.answered = True
+                    st.session_state.answered_current = True
+                else:
+                    st.success("🎉 Correct!")
             else:
-                st.error("❌ Not quite right yet. Try using a hint or double-check your spelling!")
+                st.error("❌ Not quite right yet. Have another look!")
                 
     with col2:
-        if st.button("💡 Stuck? Show Hint"):
-            st.session_state.hint_clicked = True
-            
-    with col3:
-        if st.button("➡️ Next Question"):
-            with st.spinner("🧠 Generating next challenge..."):
-                generate_ai_question(selected_subject, selected_section, selected_topic, api_key_input)
-            st.rerun()
+        # Show "Next Question" or "Finish" depending on where we are in the list
+        if current_q_num < total_q:
+            if st.button("➡️ Next Question"):
+                st.session_state.current_index += 1
+                st.session_state.answered_current = False
+                st.rerun()
+        else:
+            if st.button("🏁 Finish Quiz"):
+                st.session_state.quiz_active = False
+                st.balloons()
+                st.success(f"Quiz Complete! Final Score: {st.session_state.user_score} / {total_q}")
+                st.rerun()
 
-    if st.session_state.hint_clicked:
-        st.markdown("#### 🔍 Clue Panel:")
-        st.warning(st.session_state.current_q["hint"])
-        with st.expander("Show Answer (Parent view)"):
-            st.write(f"**Target Answer:** {st.session_state.current_q['answer']}")
-else:
-    st.info("👈 Open the settings menu above, enter your API Key, and click **Generate New Question** to begin!")
+    # The hint is now neatly tucked away at the bottom
+    st.markdown("<br>", unsafe_allow_html=True) # Adds a little visual breathing room
+    with st.expander("💡 Stuck? Click here for a Hint & Exam Technique"):
+        st.markdown("### 🔍 Hint")
+        st.warning(current_data["hint"])
+        st.markdown("### ⏱️ Exam Technique")
+        st.success(current_data["exam_technique"])
+        
+        # Optionally show the hidden answer for parent assistance
+        st.markdown("---")
+        st.write(f"*Parent check — Target Answer: {current_data['answer']}*")
+
+elif not st.session_state.quiz_active:
+    st.info("👈 Open the setup menu above to generate a new quiz!")
