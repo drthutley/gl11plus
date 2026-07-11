@@ -32,7 +32,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. FULL SYLLABUS MENU (From Your Images)
+# 2. FULL SYLLABUS MENU 
 # ==========================================
 SYLLABUS_MENU = {
     "English": {
@@ -54,7 +54,6 @@ SYLLABUS_MENU = {
 # ==========================================
 # 3. AI STRUCTURE & STATE MANAGEMENT
 # ==========================================
-# This forces the AI to return exactly what our app needs
 class QuestionData(BaseModel):
     question: str = Field(description="The GL 11+ style question text. Include multiple choice options in the text if applicable.")
     answer: str = Field(description="The exact target answer word or number.")
@@ -71,7 +70,7 @@ if "answered" not in st.session_state:
 
 def generate_ai_question(subject, section, topic, api_key):
     if not api_key:
-        st.sidebar.error("⚠️ Please enter your Gemini API Key first.")
+        st.error("⚠️ Please enter your Gemini API Key in the settings menu.")
         return
 
     client = genai.Client(api_key=api_key)
@@ -94,7 +93,7 @@ def generate_ai_question(subject, section, topic, api_key):
             config={
                 'response_mime_type': 'application/json',
                 'response_schema': QuestionData,
-                'temperature': 0.7, # Adds a bit of creative variance so questions don't repeat
+                'temperature': 0.7, 
             }
         )
         data = json.loads(response.text)
@@ -105,60 +104,39 @@ def generate_ai_question(subject, section, topic, api_key):
         st.error(f"Failed to generate question. Please check your API key or try again. Error: {e}")
 
 # ==========================================
-# 4. APP INTERFACE & SIDEBAR
+# 4. APP INTERFACE (NO SIDEBAR)
 # ==========================================
 st.title("✏️ GL 11+ Practice Partner")
 
-# Sidebar Configuration
-st.sidebar.header("🔑 AI Setup")
-api_key_input = st.sidebar.text_input("Enter Gemini API Key", type="password")
-st.sidebar.markdown("[Get a free API key here](https://aistudio.google.com/app/apikey)")
-st.sidebar.markdown("---")
+# This safely checks if you've set up secrets yet
+try:
+    secret_api_key = st.secrets["GEMINI_API_KEY"]
+except:
+    secret_api_key = ""
 
-st.sidebar.header("📋 Subject Selection")
-selected_subject = st.sidebar.selectbox("Choose Subject", list(SYLLABUS_MENU.keys()))
-selected_section = st.sidebar.selectbox("Choose Section", list(SYLLABUS_MENU[selected_subject].keys()))
-selected_topic = st.sidebar.selectbox("Choose Topic Type", SYLLABUS_MENU[selected_subject][selected_section])
+# This is the new collapsible menu! It starts open, but closes once a question loads
+with st.expander("⚙️ Topic Selection & Settings (Click to open/close)", expanded=(st.session_state.current_q is None)):
+    if not secret_api_key:
+        api_key_input = st.text_input("Enter Gemini API Key", type="password", help="Once you add this in Streamlit Secrets, this box will disappear.")
+    else:
+        api_key_input = secret_api_key
+        st.success("✅ API Key securely loaded in the background!")
+    
+    st.markdown("### 📋 Choose Your Subject")
+    selected_subject = st.selectbox("Choose Subject", list(SYLLABUS_MENU.keys()))
+    selected_section = st.selectbox("Choose Section", list(SYLLABUS_MENU[selected_subject].keys()))
+    selected_topic = st.selectbox("Choose Topic Type", SYLLABUS_MENU[selected_subject][selected_section])
 
-if st.sidebar.button("✨ Generate New Question"):
-    with st.spinner("🧠 Generating a unique 11+ challenge..."):
-        generate_ai_question(selected_subject, selected_section, selected_topic, api_key_input)
+    if st.button("✨ Generate New Question"):
+        with st.spinner("🧠 Generating a unique 11+ challenge..."):
+            generate_ai_question(selected_subject, selected_section, selected_topic, api_key_input)
+            st.rerun()
 
-st.sidebar.markdown(f"### 🏆 Current Score: `{st.session_state.user_score}`")
+st.markdown(f"### 🏆 Current Score: `{st.session_state.user_score}`")
 st.markdown("---")
 
 # ==========================================
-# 5. JAVASCRIPT TIMER
-# ==========================================
-timer_html = """
-<div style="display: flex; justify-content: flex-end; margin-bottom: 10px;">
-    <div id="countdown-box" style="font-size: 22px; font-weight: bold; color: #0c4a6e; background-color: #e0f2fe; padding: 10px 20px; border-radius: 8px; border: 2px solid #0284c7;">
-        ⏱️ Time Left: <span id="timer">02:00</span>
-    </div>
-</div>
-<script>
-    var targetTime = 120; 
-    var timerDisplay = document.getElementById("timer");
-    var countdown = setInterval(function() {
-        var minutes = Math.floor(targetTime / 60);
-        var seconds = targetTime % 60;
-        if (seconds < 10) { seconds = "0" + seconds; }
-        timerDisplay.textContent = minutes + ":" + seconds;
-        if (targetTime <= 0) {
-            clearInterval(countdown);
-            document.getElementById("countdown-box").style.backgroundColor = "#fee2e2";
-            document.getElementById("countdown-box").style.borderColor = "#ef4444";
-            document.getElementById("countdown-box").style.color = "#991b1b";
-            timerDisplay.textContent = "Time's Up!";
-        }
-        targetTime--;
-    }, 1000);
-</script>
-"""
-st.components.v1.html(timer_html, height=65)
-
-# ==========================================
-# 6. ACTIVE PRACTICE AREA
+# 5. ACTIVE PRACTICE AREA 
 # ==========================================
 if st.session_state.current_q:
     st.markdown("### ❓ Question Challenge:")
@@ -166,11 +144,10 @@ if st.session_state.current_q:
     
     user_input = st.text_input("Type your answer below:", value="", key="user_answer_field")
     
-    col1, col2, col3 = st.columns([1.2, 1.5, 1])
+    col1, col2, col3 = st.columns([1.2, 1.5, 1.2])
     
     with col1:
         if st.button("✔️ Check Answer"):
-            # Simple check: if the target answer is inside the user's text or vice versa
             target = str(st.session_state.current_q["answer"]).strip().lower()
             user_ans = user_input.strip().lower()
             
@@ -195,8 +172,7 @@ if st.session_state.current_q:
     if st.session_state.hint_clicked:
         st.markdown("#### 🔍 Clue Panel:")
         st.warning(st.session_state.current_q["hint"])
-        # Optionally show the hidden answer for parent assistance
         with st.expander("Show Answer (Parent view)"):
             st.write(f"**Target Answer:** {st.session_state.current_q['answer']}")
 else:
-    st.info("👈 Enter your API Key in the sidebar and click **Generate New Question** to begin!")
+    st.info("👈 Open the settings menu above, enter your API Key, and click **Generate New Question** to begin!")
